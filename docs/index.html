@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Analysis</title>
+
+  <!-- stlite: Streamlit running entirely in the browser via WebAssembly -->
+  <!-- No Python server needed — works on GitHub Pages -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.63.0/build/stlite.css"
+  />
+
+  <style>
+    /* Loading splash shown while Pyodide + packages boot (~10-15s first visit) */
+    #splash {
+      position: fixed; inset: 0;
+      background: #191414;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      font-family: sans-serif;
+      transition: opacity 0.6s;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    #splash h1 { color: #1DB954; font-size: 2rem; margin: 0 0 8px; }
+    #splash p  { color: #888;    font-size: 0.9rem; margin: 0 0 24px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #333;
+      border-top-color: #1DB954;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #splash small { color: #555; margin-top: 16px; font-size: 0.75rem; }
+
+    html, body { margin: 0; padding: 0; height: 100%; background: #191414; }
+    #root { height: 100vh; }
+  </style>
+</head>
+
+<body>
+
+  <!-- Splash screen while stlite boots -->
+  <div id="splash">
+    <h1>🎵 Spotify Analysis</h1>
+    <p>Loading Python runtime — first visit takes ~15 seconds…</p>
+    <div class="spinner"></div>
+    <small>Powered by stlite · Streamlit in the browser</small>
+  </div>
+
+  <div id="root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.63.0/build/stlite.js"></script>
+
+  <script>
+    // ── Dismiss splash once the app renders ─────────────────
+    const splash = document.getElementById("splash");
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(".stApp")) {
+        splash.classList.add("hidden");
+        setTimeout(() => splash.remove(), 700);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.getElementById("root"), { childList: true, subtree: true });
+
+    // ── Mount the Streamlit app ──────────────────────────────
+    // IMPORTANT: Replace YOUR_GITHUB_USERNAME / YOUR_REPO_NAME below
+    //            after pushing this repo to GitHub.
+    const GITHUB_RAW =
+      "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/main/";
+
+    stlite.mount(
+      {
+        requirements: [
+          "pandas",
+          "plotly",
+          "scikit-learn",
+          "numpy",
+        ],
+
+        entrypoint: "app.py",
+
+        files: {
+          // Load app.py directly from your GitHub repo (auto-updates on push)
+          "app.py": { url: GITHUB_RAW + "app.py" },
+
+          // The CSV is ~24 MB — fetched once and cached in the browser
+          // stlite downloads it into the in-browser filesystem
+          "datasets/spotify_tracks_cleaned.csv": {
+            url: GITHUB_RAW + "datasets/spotify_tracks_cleaned.csv",
+          },
+        },
+      },
+      document.getElementById("root")
+    );
+  </script>
+
+</body>
+</html>
