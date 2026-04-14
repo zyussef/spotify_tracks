@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(.conda/bin/python3 -c ':*)",
-      "Bash(.conda/bin/pip install:*)"
+      "Bash(.conda/bin/pip install:*)",
+      "WebFetch(domain:zyussef.github.io)"
     ]
   }
 }
