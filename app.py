@@ -40,17 +40,15 @@ AUDIO_FEATURES = [
 # ─────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading dataset…")
 def load_data():
-    # Works locally; GitHub Pages version fetches from raw URL (see docs/index.html)
+    # Works locally; falls back to GitHub raw URL when running via stlite/GitHub Pages
     try:
         df = pd.read_csv("datasets/spotify_tracks_cleaned.csv")
-    except FileNotFoundError:
-        import urllib.request
-        url = (
+    except Exception:
+        df = pd.read_csv(
             "https://raw.githubusercontent.com/"
-            "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/"
+            "zyussef/spotify_tracks/"
             "main/datasets/spotify_tracks_cleaned.csv"
         )
-        df = pd.read_csv(url)
 
     df_unique = df.drop_duplicates("track_id").reset_index(drop=True)
     df_unique["dur_min"] = df_unique["duration_ms"] / 60_000
@@ -82,6 +80,28 @@ genre_df = genre_stats(df)
 # ─────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────
+def ml_placeholder(title: str, icon: str, description: str, features: list, color: str):
+    """Reusable 'coming soon' card for Phase 4 ML pages."""
+    bg = "#0d1f0d" if color == SPOTIFY_GREEN else "#1a1a2e"
+    st.markdown(
+        f"""
+        <div style='border:2px dashed {color};border-radius:16px;
+                    padding:32px;text-align:center;margin-bottom:24px;background:{bg}'>
+            <p style='font-size:48px;margin:0'>{icon}</p>
+            <h2 style='color:{color};margin:12px 0 8px'>{title}</h2>
+            <p style='color:#aaa;max-width:600px;margin:0 auto'>{description}</p>
+            <span style='display:inline-block;margin-top:16px;padding:6px 16px;
+                         border-radius:20px;background:{color}22;color:{color};
+                         font-size:12px;font-weight:bold'>PHASE 4 — IN DEVELOPMENT</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.subheader("Planned features")
+    for f in features:
+        st.markdown(f"- {f}")
+
+
 def radar_chart(values: list, labels: list, title: str, color: str = SPOTIFY_GREEN):
     """Return a Plotly polar/radar figure for one genre."""
     values_closed = values + [values[0]]
@@ -133,40 +153,24 @@ st.sidebar.markdown(
 st.sidebar.caption("114k tracks · 114 genres · 31k artists")
 st.sidebar.divider()
 
-PAGES = {
-    "Overview":            "📊",
-    "Genre Explorer":      "🎸",
-    "Track Finder":        "🔍",
-    "Audio Deep Dive":     "🔬",
-}
-ML_PAGES = {
-    "Genre Classifier":      "🤖",
-    "Sound Clusters":        "🧩",
-    "Recommendation Engine": "💡",
-}
+ALL_PAGES = [
+    "📊  Overview",
+    "🎸  Genre Explorer",
+    "🔍  Track Finder",
+    "🔬  Audio Deep Dive",
+    "─────────────────────",
+    "🤖  Genre Classifier",
+    "🧩  Sound Clusters",
+    "💡  Recommendation Engine",
+]
 
-st.sidebar.markdown("**Analysis**")
+# Disable the separator line from being selectable
 page = st.sidebar.radio(
-    "page", list(PAGES.keys()), format_func=lambda p: f"{PAGES[p]}  {p}",
-    label_visibility="collapsed"
-)
-
-st.sidebar.divider()
-st.sidebar.markdown("**Phase 4 — Machine Learning**")
-ml_page = st.sidebar.radio(
-    "ml_page", list(ML_PAGES.keys()), format_func=lambda p: f"{ML_PAGES[p]}  {p}",
-    label_visibility="collapsed"
+    "nav", ALL_PAGES,
+    label_visibility="collapsed",
 )
 st.sidebar.divider()
-
-# Which section is active?
-if st.sidebar.button("← Back to Analysis", use_container_width=True):
-    ml_page = None
-
-# Decide active page
-active = page  # default to analysis page
-if st.query_params.get("ml"):
-    active = st.query_params["ml"]
+st.sidebar.caption("Phase 4 ML pages are in development.")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -174,7 +178,10 @@ if st.query_params.get("ml"):
 # ─────────────────────────────────────────────────────────────
 
 # ── 1. OVERVIEW ──────────────────────────────────────────────
-if page == "Overview":
+if page == "─────────────────────":
+    st.info("Select a page from the sidebar.")
+
+elif page == "📊  Overview":
     st.title("What Makes a Hit?")
     st.caption("Exploring 114,000 Spotify tracks across 114 genres")
     st.divider()
@@ -243,7 +250,7 @@ if page == "Overview":
 
 
 # ── 2. GENRE EXPLORER ────────────────────────────────────────
-elif page == "Genre Explorer":
+elif page == "🎸  Genre Explorer":
     st.title("Genre Explorer")
     st.divider()
 
@@ -345,7 +352,7 @@ elif page == "Genre Explorer":
 
 
 # ── 3. TRACK FINDER ──────────────────────────────────────────
-elif page == "Track Finder":
+elif page == "🔍  Track Finder":
     st.title("Track Finder")
     st.caption("Search any track and explore its audio fingerprint + similar-sounding songs.")
     st.divider()
@@ -431,7 +438,7 @@ elif page == "Track Finder":
 
 
 # ── 4. AUDIO DEEP DIVE ───────────────────────────────────────
-elif page == "Audio Deep Dive":
+elif page == "🔬  Audio Deep Dive":
     st.title("Audio Deep Dive")
     st.divider()
 
@@ -530,33 +537,7 @@ elif page == "Audio Deep Dive":
         """)
 
 
-# ─────────────────────────────────────────────────────────────
-# ML PAGES (Phase 4 — Coming Soon)
-# ─────────────────────────────────────────────────────────────
-
-def ml_placeholder(title: str, icon: str, description: str, features: list, color: str):
-    """Reusable 'coming soon' layout for ML pages."""
-    st.markdown(
-        f"""
-        <div style='border:2px dashed {color};border-radius:16px;
-                    padding:32px;text-align:center;margin-bottom:24px;
-                    background:{"#0d1f0d" if color == SPOTIFY_GREEN else "#1a1a2e"}'>
-            <p style='font-size:48px;margin:0'>{icon}</p>
-            <h2 style='color:{color};margin:12px 0 8px'>{title}</h2>
-            <p style='color:#aaa;max-width:600px;margin:0 auto'>{description}</p>
-            <span style='display:inline-block;margin-top:16px;padding:6px 16px;
-                         border-radius:20px;background:{color}22;color:{color};
-                         font-size:12px;font-weight:bold'>PHASE 4 — IN DEVELOPMENT</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.subheader("Planned features")
-    for f in features:
-        st.markdown(f"- {f}")
-
-
-if ml_page == "Genre Classifier":
+elif page == "🤖  Genre Classifier":
     st.title("Genre Classifier")
     st.divider()
     ml_placeholder(
@@ -599,7 +580,7 @@ if ml_page == "Genre Classifier":
     st.plotly_chart(fig_var, use_container_width=True)
 
 
-elif ml_page == "Sound Clusters":
+elif page == "🧩  Sound Clusters":
     st.title("Sound Clusters")
     st.divider()
     ml_placeholder(
@@ -654,7 +635,7 @@ elif ml_page == "Sound Clusters":
         st.plotly_chart(fig_dv, use_container_width=True)
 
 
-elif ml_page == "Recommendation Engine":
+elif page == "💡  Recommendation Engine":
     st.title("Recommendation Engine")
     st.divider()
     ml_placeholder(
