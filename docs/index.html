@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spotify Analysis</title>
 
-  <!-- stlite: Streamlit running entirely in the browser via WebAssembly -->
+  <!-- @stlite/browser: current maintained package (replaces @stlite/mountable) -->
   <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.63.0/build/stlite.css"
+    href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.85.1/build/stlite.css"
   />
 
   <style>
@@ -22,20 +22,21 @@
       align-items: center; justify-content: center;
       z-index: 9999;
       font-family: sans-serif;
-      transition: opacity 0.6s;
+      transition: opacity 0.8s;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
-    #splash h1  { color: #1DB954; font-size: 2rem; margin: 0 0 6px; }
-    #splash p   { color: #888;    font-size: 0.9rem; margin: 0 0 24px; }
-    #splash small { color: #444; margin-top: 16px; font-size: 0.75rem; }
-    #splash-step  { color: #555; font-size: 0.8rem; margin-top: 8px; }
+
+    #splash h1    { color: #1DB954; font-size: 2rem; margin: 0 0 6px; }
+    #splash p     { color: #888;    font-size: 0.9rem; margin: 0 0 24px; }
+    #splash-step  { color: #1DB954; font-size: 0.85rem; margin-top: 12px; }
+    #splash small { color: #444;    font-size: 0.72rem; margin-top: 8px; }
 
     .spinner {
-      width: 40px; height: 40px;
-      border: 4px solid #333;
+      width: 44px; height: 44px;
+      border: 4px solid #2a2a2a;
       border-top-color: #1DB954;
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -44,78 +45,113 @@
       border: 2px solid #FF6B9D;
       border-radius: 12px;
       padding: 20px 32px;
-      margin-top: 24px;
+      margin-top: 20px;
+      max-width: 460px;
       text-align: center;
-      max-width: 480px;
     }
-    #error-box h2 { color: #FF6B9D; margin: 0 0 8px; }
-    #error-box p  { color: #aaa; font-size: 0.85rem; margin: 0; }
+    #error-box h3 { color: #FF6B9D; margin: 0 0 6px; }
+    #error-box p  { color: #aaa; font-size: 0.82rem; margin: 0; }
   </style>
 </head>
 
 <body>
   <div id="splash">
     <h1>🎵 Spotify Analysis</h1>
-    <p>Loading Python runtime — first visit takes ~20 seconds…</p>
+    <p>Loading — first visit takes 30–60 seconds while the runtime boots</p>
     <div class="spinner"></div>
     <div id="splash-step">Fetching app…</div>
-    <small>Powered by stlite · Streamlit in WebAssembly</small>
+    <small>Powered by stlite · Streamlit in WebAssembly · no server needed</small>
     <div id="error-box">
-      <h2>Load Error</h2>
-      <p id="error-msg">Something went wrong.</p>
+      <h3>Something went wrong</h3>
+      <p id="error-msg"></p>
     </div>
   </div>
 
   <div id="root"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.63.0/build/stlite.js"></script>
+  <!--
+    ES module import — @stlite/browser replaces the deprecated @stlite/mountable.
+    Top-level await is valid inside <script type="module">.
+  -->
+  <script type="module">
+    import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.85.1/build/stlite.js";
 
-  <script>
     const GITHUB_RAW = "https://raw.githubusercontent.com/zyussef/spotify_tracks/main/";
-    const splash     = document.getElementById("splash");
     const stepEl     = document.getElementById("splash-step");
+    const splash     = document.getElementById("splash");
 
     function showError(msg) {
       document.getElementById("error-box").style.display = "block";
       document.getElementById("error-msg").textContent   = msg;
       document.querySelector(".spinner").style.display   = "none";
+      stepEl.style.display = "none";
     }
 
-    // Dismiss splash once Streamlit renders its first element
+    // Dismiss splash once Streamlit has rendered anything real
     const observer = new MutationObserver(() => {
-      if (document.querySelector(".stApp")) {
+      // stlite renders an <iframe> or a React root — watch for either
+      const ready =
+        document.querySelector("#root iframe") ||
+        document.querySelector(".stApp")       ||
+        document.querySelector("[data-testid='stAppViewContainer']");
+      if (ready) {
         splash.classList.add("hidden");
-        setTimeout(() => splash.remove(), 700);
+        setTimeout(() => splash.remove(), 900);
         observer.disconnect();
       }
     });
     observer.observe(document.getElementById("root"), { childList: true, subtree: true });
 
-    // 1. Fetch app.py as text, then mount stlite
-    //    (more reliable than stlite's {url:} file syntax)
-    stepEl.textContent = "Fetching app.py…";
-    fetch(GITHUB_RAW + "app.py")
-      .then(r => {
-        if (!r.ok) throw new Error(`app.py fetch failed (HTTP ${r.status})`);
-        stepEl.textContent = "Starting Python runtime…";
-        return r.text();
-      })
-      .then(appCode => {
-        stlite.mount(
-          {
-            requirements: ["pandas", "plotly", "scikit-learn", "numpy"],
-            entrypoint: "app.py",
-            files: {
-              // Inline app.py content — no URL dependency at mount time
-              "app.py": appCode,
-              // CSV is too large to inline; app.py's load_data() fetches it
-              // from GITHUB_RAW via pd.read_csv(url) in its except branch
+    // Fallback: dismiss after 90s regardless (catches edge cases where class names differ)
+    setTimeout(() => {
+      if (document.getElementById("splash")) {
+        splash.classList.add("hidden");
+        setTimeout(() => splash.remove(), 900);
+      }
+    }, 90_000);
+
+    try {
+      // 1. Fetch app.py as a text string (small file, always fresh from GitHub)
+      stepEl.textContent = "Fetching app.py…";
+      const res = await fetch(GITHUB_RAW + "app.py");
+      if (!res.ok) throw new Error(`app.py fetch failed: HTTP ${res.status}`);
+      const appCode = await res.text();
+
+      // 2. Mount stlite
+      //    - scikit-learn is intentionally omitted: it takes 5+ min to build in Pyodide.
+      //      It will be added back in Phase 4 when the ML pages go live.
+      //    - The CSV is declared as a {url:} file so stlite downloads it into the
+      //      in-browser filesystem before the Python app starts. app.py then reads it
+      //      with pd.read_csv("datasets/spotify_tracks_cleaned.csv") as a local path.
+      stepEl.textContent = "Starting Python runtime (pandas + plotly)…";
+
+      mount(
+        {
+          requirements: ["pandas", "plotly", "numpy"],
+
+          entrypoint: "app.py",
+
+          files: {
+            "app.py": appCode,
+            "datasets/spotify_tracks_cleaned.csv": {
+              url: GITHUB_RAW + "datasets/spotify_tracks_cleaned.csv",
             },
           },
-          document.getElementById("root")
-        );
-      })
-      .catch(err => showError(err.message));
+
+          streamlitConfig: {
+            "theme.base":         "dark",
+            "theme.primaryColor": "#1DB954",
+            "theme.backgroundColor":       "#191414",
+            "theme.secondaryBackgroundColor": "#121212",
+            "theme.textColor":    "#FFFFFF",
+          },
+        },
+        document.getElementById("root"),
+      );
+
+    } catch (err) {
+      showError(err.message);
+    }
   </script>
 </body>
 </html>
