@@ -3,7 +3,11 @@
     "allow": [
       "Bash(.conda/bin/python3 -c ':*)",
       "Bash(.conda/bin/pip install:*)",
-      "WebFetch(domain:zyussef.github.io)"
+      "WebFetch(domain:zyussef.github.io)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "WebFetch(domain:github.com)",
+      "Bash(.conda/bin/python3 -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")"
     ]
   }
 }
